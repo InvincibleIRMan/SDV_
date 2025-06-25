@@ -137,34 +137,43 @@ def loss_fn(recon, target, mu, logvar):
 n_epochs = 30
 batch_size = 32
 
-for epoch in range(n_epochs):
-    model.train()
-    train_loss = 0.0
-    for xb_cont, xb_cat in yield_batches(cont_train, cat_train, batch_size):
-        xb_cont = torch.tensor(xb_cont)
-        xb_cat = torch.tensor(xb_cat)
-        optimizer.zero_grad()
-        recon, mu, logvar = model(xb_cont, xb_cat)
-        emb_inputs = [model.embeddings[i](xb_cat[:, i]) for i in range(len(model.embeddings))]
-        x = torch.cat([xb_cont] + emb_inputs, dim=1)
-        loss = loss_fn(recon, x, mu, logvar)
-        loss.backward()
-        train_loss += loss.item()
-        optimizer.step()
 
-    model.eval()
-    val_loss = 0.0
-    with torch.no_grad():
-        for xb_cont, xb_cat in yield_batches(cont_val, cat_val, batch_size):
+def main() -> None:
+    """Train the VAE on the toy dataset and report losses."""
+    for epoch in range(n_epochs):
+        model.train()
+        train_loss = 0.0
+        for xb_cont, xb_cat in yield_batches(cont_train, cat_train, batch_size):
             xb_cont = torch.tensor(xb_cont)
             xb_cat = torch.tensor(xb_cat)
+            optimizer.zero_grad()
             recon, mu, logvar = model(xb_cont, xb_cat)
             emb_inputs = [model.embeddings[i](xb_cat[:, i]) for i in range(len(model.embeddings))]
             x = torch.cat([xb_cont] + emb_inputs, dim=1)
-            val_loss += loss_fn(recon, x, mu, logvar).item()
+            loss = loss_fn(recon, x, mu, logvar)
+            loss.backward()
+            train_loss += loss.item()
+            optimizer.step()
 
-    print(  # noqa: T201
-        f'Epoch {epoch + 1:02d} | '
-        f'Train Loss: {train_loss / len(cont_train):.4f} | '
-        f'Val Loss: {val_loss / len(cont_val):.4f}',
-    )
+        model.eval()
+        val_loss = 0.0
+        with torch.no_grad():
+            for xb_cont, xb_cat in yield_batches(cont_val, cat_val, batch_size):
+                xb_cont = torch.tensor(xb_cont)
+                xb_cat = torch.tensor(xb_cat)
+                recon, mu, logvar = model(xb_cont, xb_cat)
+                emb_inputs = [
+                    model.embeddings[i](xb_cat[:, i]) for i in range(len(model.embeddings))
+                ]
+                x = torch.cat([xb_cont] + emb_inputs, dim=1)
+                val_loss += loss_fn(recon, x, mu, logvar).item()
+
+        print(  # noqa: T201
+            f'Epoch {epoch + 1:02d} | '
+            f'Train Loss: {train_loss / len(cont_train):.4f} | '
+            f'Val Loss: {val_loss / len(cont_val):.4f}',
+        )
+
+
+if __name__ == '__main__':
+    main()
